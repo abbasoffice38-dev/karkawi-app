@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محطة الكرعاوي لتبديل الدهن</title>
+<style>
+  :root {
+    --bg: #1B1D1F;
+    --panel: #242628;
+    --panel-alt: #2C2F32;
+    --line: #3A3D40;
+    --ink: #EDE9E1;
+    --ink-dim: #A7A29A;
+    --amber: #D98E3F;
+    --green: #5C9A6B;
+    --red: #C25B4E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-inner { max-width: 880px; margin: 0 auto; padding: 16px 16px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .brand-icon {
+    width: 34px; height: 34px; border-radius: 8px; background: var(--amber);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font-size: 18px;
+  }
+  .brand-title { font-size: 17px; font-weight: 700; }
+  .brand-sub { font-size: 12.5px; color: var(--ink-dim); }
+  nav { display: flex; gap: 4px; }
+  nav button {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 14px; background: transparent; border: none;
+    border-bottom: 2px solid transparent; color: var(--ink-dim);
+    font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit;
+  }
+  nav button.active { color: var(--ink); font-weight: 700; border-bottom-color: var(--amber); }
+  main { max-width: 880px; margin: 0 auto; padding: 20px 16px 60px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .card + .card { margin-top: 8px; }
+  .field { display: block; margin-bottom: 12px; }
+  .field-label { font-size: 13px; color: var(--ink-dim); margin-bottom: 5px; }
+  input, select {
+    width: 100%; background: var(--panel-alt); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 12px; color: var(--ink); font-size: 14.5px;
+    outline: none; font-family: inherit;
+  }
+  input[dir="ltr"] { text-align: left; }
+  .btn {
+    background: var(--amber); color: #1B1200; border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 14.5px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .btn.green { background: var(--green); }
+  .btn.red { background: var(--red); }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+  .btn:disabled { background: var(--line); color: var(--ink-dim); cursor: not-allowed; }
+  .row-between { display: flex; justify-content: space-between; align-items: center; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .muted { color: var(--ink-dim); }
+  .icon-btn { background: none; border: none; color: var(--ink-dim); cursor: pointer; font-size: 15px; padding: 4px; }
+  .icon-btn[disabled] { opacity: 0.3; cursor: not-allowed; }
+  .badge { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; }
+  .badge.low { background: #3A2622; color: #E8988A; }
+  .badge.ok { background: var(--panel-alt); }
+  .empty { text-align: center; color: var(--ink-dim); padding: 20px 0; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-label { font-size: 12.5px; color: var(--ink-dim); margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 800; }
+  .msg { margin-top: 10px; font-size: 13.5px; }
+  .msg.ok { color: var(--green); }
+  .msg.err { color: var(--red); }
+  .list-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .list-row:last-child { border-bottom: none; }
+  .type-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .type-tag.sale { background: #20342A; color: var(--green); }
+  .type-tag.purchase { background: #332616; color: var(--amber); }
+  h3 { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
+  #product-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .item-card { display: flex; justify-content: space-between; align-items: flex-start; }
+  .item-name { font-weight: 700; font-size: 15px; }
+  .item-cat { font-size: 12.5px; color: var(--ink-dim); margin-top: 2px; }
+  .item-prices { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; }
+  .item-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon">🔧</div>
+      <div>
+        <div class="brand-title">محطة الكرعاوي لتبديل الدهن</div>
+        <div class="brand-sub">دهن محرك · فلاتر · متعلقات</div>
+      </div>
+    </div>
+    <nav id="tabs">
+      <button data-tab="inventory" class="active">📦 المخزون</button>
+      <button data-tab="buy">➕ تسجيل شراء</button>
+      <button data-tab="sell">➖ تسجيل بيع</button>
+      <button data-tab="report">📈 التقرير</button>
+    </nav>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<script>
+const CATEGORIES = ["دهن محرك", "فلتر زيت", "فلتر هواء", "فلتر بنزين", "أخرى"];
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const fmt = (n) => (Number(n) || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
+
+// ---- state, persisted to localStorage when available (falls back to in-memory
+// if the browser blocks storage for local file:// pages) ----
+let storageOK = true;
+function safeGet(key) {
+  try { return localStorage.getItem(key); }
+  catch (e) { storageOK = false; return null; }
+}
+function safeSet(key, value) {
+  try { localStorage.setItem(key, value); }
+  catch (e) { storageOK = false; }
+}
+
+let products = JSON.parse(safeGet("karkawi_products") || "[]");
+let txns = JSON.parse(safeGet("karkawi_txns") || "[]");
+let tab = "inventory";
+let editingId = null;
+let showForm = false;
+
+function saveProducts() { safeSet("karkawi_products", JSON.stringify(products)); }
+function saveTxns() { safeSet("karkawi_txns", JSON.stringify(txns)); }
+
+function formatNumberInput(el) {
+  el.addEventListener("input", () => {
+    let raw = el.value.replace(/,/g, "").replace(/[^0-9.]/g, "");
+    el.dataset.raw = raw;
+    el.value = raw === "" ? "" : Number(raw).toLocaleString("en-US");
+    // keep cursor at end (simple, good enough for short price fields)
+  });
+}
+
+function render() {
+  document.querySelectorAll("#tabs button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  const main = document.getElementById("main");
+  let html = "";
+  if (!storageOK) {
+    html += `<div class="card" style="border-color:var(--red);background:#3A2622;color:#E8B4AC;margin-bottom:16px;font-size:13.5px;">
+      ⚠ المتصفح هذا يمنع حفظ البيانات محلياً بهذا الملف. راح يشتغل التطبيق عادي، بس البيانات تنمسح إذا سكرت الصفحة. جرب تفتحه بمتصفح Chrome بدل التطبيق الافتراضي، أو خبرني لأسويلك حل دائم.
+    </div>`;
+  }
+  if (tab === "inventory") html += renderInventory();
+  else if (tab === "buy") html += renderBuySell("buy");
+  else if (tab === "sell") html += renderBuySell("sell");
+  else if (tab === "report") html += renderReport();
+  main.innerHTML = html;
+  wireEvents();
+}
+
+// ---------- Inventory ----------
+function renderInventory() {
+  let html = `
+    <div class="row-between" style="margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:700;">الأصناف (${products.length})</div>
+      <button class="btn" id="toggle-form">${showForm ? "إلغاء" : "+ إضافة صنف جديد"}</button>
+    </div>`;
+
+  if (showForm) {
+    const p = editingId ? products.find((x) => x.id === editingId) : null;
+    html += `
+      <div class="card">
+        <div style="font-size:13.5px;font-weight:700;color:var(--amber);margin-bottom:12px;">${editingId ? "تعديل الصنف" : "صنف جديد"}</div>
+        <label class="field"><div class="field-label">اسم الصنف</div>
+          <input id="f-name" value="${p ? escapeHtml(p.name) : ""}" placeholder="مثال: دهن موبيل 1 - 5W30" />
+        </label>
+        <label class="field"><div class="field-label">النوع</div>
+          <select id="f-category">
+            ${CATEGORIES.map((c) => `<option value="${c}" ${p && p.category === c ? "selected" : ""}>${c}</option>`).join("")}
+          </select>
+        </label>
+        <div class="grid2">
+          <label class="field"><div class="field-label">سعر الجملة (شراء)</div>
+            <input id="f-wholesale" dir="ltr" inputmode="decimal" value="${p ? fmt(p.wholesalePrice) : ""}" data-raw="${p ? p.wholesalePrice : ""}" placeholder="0" />
+          </label>
+          <label class="field"><div class="field-label">سعر البيع</div>
+            <input id="f-sale" dir="ltr" inputmode="decimal" value="${p ? fmt(p.salePrice) : ""}" data-raw="${p ? p.salePrice : ""}" placeholder="0" />
+          </label>
+        </div>
+        <label class="field"><div class="field-label">الكمية الحالية</div>
+          <input id="f-qty" type="number" value="${p ? p.qty : 0}" placeholder="0" />
+        </label>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" id="save-product">${editingId ? "حفظ التعديل" : "حفظ الصنف"}</button>
+          <button class="btn ghost" id="cancel-form">إلغاء</button>
+        </div>
+      </div>`;
+  }
+
+  if (products.length === 0 && !showForm) {
+    html += `<div class="card"><div class="empty">ما عندك أصناف بعد. اضغط "إضافة صنف جديد" لتبدي.</div></div>`;
+  }
+
+  html += `<div id="product-list">`;
+  products.forEach((p) => {
+    const low = p.qty <= 2;
+    html += `
+      <div class="card">
+        <div class="item-card">
+          <div>
+            <div class="item-name">${escapeHtml(p.name)}</div>
+            <div class="item-cat">${p.category}</div>
+            <div class="item-prices">
+              <span class="muted">جملة: <b style="color:var(--ink);">${fmt(p.wholesalePrice)}</b></span>
+              <span class="muted">بيع: <b style="color:var(--ink);">${fmt(p.salePrice)}</b></span>
+            </div>
+          </div>
+          <div style="text-align:left;">
+            <div class="badge ${low ? "low" : "ok"}">${low ? "⚠ " : ""}الكمية: ${p.qty}</div>
+            <div class="item-actions">
+              <button class="icon-btn edit-btn" data-id="${p.id}">✏️</button>
+              <button class="icon-btn del-btn" data-id="${p.id}">🗑️</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+// ---------- Buy / Sell ----------
+let bsProductId = null;
+let bsQty = "1";
+let bsPrice = "";
+let bsMsg = "";
+
+function renderBuySell(mode) {
+  const isSell = mode === "sell";
+  if (products.length === 0) {
+    return `<div class="card"><div class="empty">لازم تضيف أصناف بالمخزون أول.</div></div>`;
+  }
+  if (!bsProductId || !products.find((p) => p.id === bsProductId)) {
+    bsProductId = products[0].id;
+  }
+  const product = products.find((p) => p.id === bsProductId);
+  if (bsPrice === "") {
+    bsPrice = String(isSell ? product.salePrice : product.wholesalePrice);
+  }
+  const total = (Number(bsQty) || 0) * (Number(bsPrice) || 0);
+
+  return `
+    <div class="card">
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;">${isSell ? "تسجيل عملية بيع" : "تسجيل عملية شراء (إدخال بضاعة)"}</div>
+      <label class="field"><div class="field-label">الصنف</div>
+        <select id="bs-product">
+          ${products.map((p) => `<option value="${p.id}" ${p.id === bsProductId ? "selected" : ""}>${escapeHtml(p.name)} (متوفر: ${p.qty})</option>`).join("")}
+        </select>
+      </label>
+      <div class="grid2">
+        <label class="field"><div class="field-label">الكمية</div>
+          <input id="bs-qty" type="number" value="${bsQty}" />
+        </label>
+        <label class="field"><div class="field-label">${isSell ? "سعر البيع للوحدة" : "سعر الجملة للوحدة"}</div>
+          <input id="bs-price" dir="ltr" inputmode="decimal" value="${fmt(bsPrice)}" data-raw="${bsPrice}" />
+        </label>
+      </div>
+      <div class="muted" style="font-size:13px;margin-bottom:12px;">الإجمالي: <b style="color:var(--ink);">${fmt(total)}</b></div>
+      <button class="btn ${isSell ? "green" : ""}" id="bs-submit" data-mode="${mode}">${isSell ? "تأكيد البيع" : "تأكيد الشراء"}</button>
+      ${bsMsg && bsMsg !== "__switch__" ? `<div class="msg ${bsMsg.includes("✓") ? "ok" : "err"}">${bsMsg}</div>` : ""}
+    </div>`;
+}
+
+// ---------- Report ----------
+function dateKey(d) {
+  const dt = new Date(d);
+  return dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0");
+}
+let reportDate = dateKey(new Date());
+
+function renderReport() {
+  const todayKey = dateKey(new Date());
+  const dayTxns = txns.filter((t) => dateKey(t.date) === reportDate);
+  const sales = dayTxns.filter((t) => t.type === "sale");
+  const totalRevenue = sales.reduce((s, t) => s + t.price * t.qty, 0);
+  const totalCost = sales.reduce((s, t) => s + (t.wholesalePriceAtTime || 0) * t.qty, 0);
+  const netProfit = totalRevenue - totalCost;
+  const inventoryValue = products.reduce((s, p) => s + p.wholesalePrice * p.qty, 0);
+
+  const dateLabel = new Date(reportDate + "T00:00:00").toLocaleDateString("ar-IQ", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const isToday = reportDate === todayKey;
+
+  const map = {};
+  sales.forEach((t) => {
+    if (!map[t.productId]) map[t.productId] = { name: t.productName, qty: 0, revenue: 0, profit: 0 };
+    map[t.productId].qty += t.qty;
+    map[t.productId].revenue += t.price * t.qty;
+    map[t.productId].profit += (t.price - (t.wholesalePriceAtTime || 0)) * t.qty;
+  });
+  const perProduct = Object.values(map).sort((a, b) => b.profit - a.profit);
+
+  let html = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="row-between">
+        <button class="icon-btn" id="report-prev-day" style="font-size:20px;">◀</button>
+        <div style="text-align:center;">
+          <div style="font-size:14px;font-weight:700;">${dateLabel}</div>
+          <div class="muted" style="font-size:12px;">${isToday ? "تقرير اليوم" : "تقرير يوم سابق"}</div>
+        </div>
+        <button class="icon-btn" id="report-next-day" style="font-size:20px;" ${isToday ? "disabled" : ""}>▶</button>
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="card"><div class="stat-label">مبيعات اليوم</div><div class="stat-value">${fmt(totalRevenue)}</div></div>
+      <div class="card"><div class="stat-label">صافي ربح اليوم</div><div class="stat-value" style="color:${netProfit >= 0 ? "var(--green)" : "var(--red)"}">${fmt(netProfit)}</div></div>
+      <div class="card"><div class="stat-label">عدد عمليات البيع</div><div class="stat-value">${sales.length}</div></div>
+      <div class="card"><div class="stat-label">قيمة المخزون الحالي (جملة)</div><div class="stat-value">${fmt(inventoryValue)}</div></div>
+    </div>
+    <div class="card">
+      <h3>الربح حسب الصنف (اليوم)</h3>
+      ${perProduct.length === 0 ? `<div class="muted" style="font-size:13.5px;">ما أكو مبيعات باليوم هذا.</div>` :
+        perProduct.map((p) => `
+          <div class="list-row">
+            <div>
+              <div style="font-size:14px;">${escapeHtml(p.name)}</div>
+              <div class="muted" style="font-size:12px;">${p.qty} وحدة مباعة</div>
+            </div>
+            <div style="text-align:left;">
+              <div style="font-size:14px;font-weight:700;color:${p.profit >= 0 ? "var(--green)" : "var(--red)"}">${fmt(p.profit)}</div>
+              <div class="muted" style="font-size:11.5px;">مبيعات: ${fmt(p.revenue)}</div>
+            </div>
+          </div>`).join("")}
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>حركات اليوم</h3>
+      ${dayTxns.length === 0 ? `<div class="muted" style="font-size:13.5px;">ما أكو حركات مسجلة باليوم هذا.</div>` :
+        dayTxns.map((t) => `
+          <div class="list-row">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="type-tag ${t.type}">${t.type === "sale" ? "بيع" : "شراء"}</span>
+              <span style="font-size:13.5px;">${escapeHtml(t.productName)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="muted" style="font-size:12.5px;">${new Date(t.date).toLocaleTimeString("ar-IQ", { hour: "2-digit", minute: "2-digit" })}</span>
+              <span style="font-size:13.5px;font-weight:700;">${fmt(t.qty * t.price)}</span>
+            </div>
+          </div>`).join("")}
+    </div>`;
+  return html;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function wireEvents() {
+  const toggle = document.getElementById("toggle-form");
+  if (toggle) toggle.onclick = () => {
+    if (showForm) { showForm = false; editingId = null; }
+    else { showForm = true; editingId = null; }
+    render();
+  };
+  const cancel = document.getElementById("cancel-form");
+  if (cancel) cancel.onclick = () => { showForm = false; editingId = null; render(); };
+
+  ["f-wholesale", "f-sale", "bs-price"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) formatNumberInput(el);
+  });
+
+  const saveBtn = document.getElementById("save-product");
+  if (saveBtn) saveBtn.onclick = () => {
+    const name = document.getElementById("f-name").value.trim();
+    const category = document.getElementById("f-category").value;
+    const wEl = document.getElementById("f-wholesale");
+    const sEl = document.getElementById("f-sale");
+    const wholesale = wEl.dataset.raw !== undefined && wEl.dataset.raw !== "" ? wEl.dataset.raw : wEl.value.replace(/,/g, "");
+    const sale = sEl.dataset.raw !== undefined && sEl.dataset.raw !== "" ? sEl.dataset.raw : sEl.value.replace(/,/g, "");
+    const qty = document.getElementById("f-qty").value;
+    if (!name || wholesale === "" || sale === "") return;
+    if (editingId) {
+      products = products.map((p) => p.id === editingId
+        ? { ...p, name, category, wholesalePrice: Number(wholesale), salePrice: Number(sale), qty: Number(qty) || 0 }
+        : p);
+    } else {
+      products = [{ id: uid(), name, category, wholesalePrice: Number(wholesale), salePrice: Number(sale), qty: Number(qty) || 0 }, ...products];
+    }
+    saveProducts();
+    showForm = false; editingId = null;
+    render();
+  };
+
+  document.querySelectorAll(".edit-btn").forEach((b) => {
+    b.onclick = () => { editingId = b.dataset.id; showForm = true; render(); };
+  });
+  document.querySelectorAll(".del-btn").forEach((b) => {
+    b.onclick = () => { products = products.filter((p) => p.id !== b.dataset.id); saveProducts(); render(); };
+  });
+
+  const bsProduct = document.getElementById("bs-product");
+  if (bsProduct) bsProduct.onchange = () => { bsProductId = bsProduct.value; bsPrice = ""; bsMsg = ""; render(); };
+  const bsQtyEl = document.getElementById("bs-qty");
+  if (bsQtyEl) bsQtyEl.oninput = () => { bsQty = bsQtyEl.value; };
+  const bsPriceEl = document.getElementById("bs-price");
+  if (bsPriceEl) bsPriceEl.addEventListener("input", () => { bsPrice = bsPriceEl.dataset.raw; });
+  const bsSubmit = document.getElementById("bs-submit");
+  if (bsSubmit) bsSubmit.onclick = () => {
+    const isSell = bsSubmit.dataset.mode === "sell";
+    const product = products.find((p) => p.id === bsProductId);
+    const q = Number(bsQty);
+    const pr = Number(bsPrice);
+    if (!product) return;
+    if (!q || q <= 0) { bsMsg = "أدخل كمية صحيحة"; render(); return; }
+    if (isSell && q > product.qty) { bsMsg = `الكمية المتوفرة فقط ${product.qty}`; render(); return; }
+    products = products.map((p) => p.id === product.id ? { ...p, qty: isSell ? p.qty - q : p.qty + q } : p);
+    txns = [{ id: uid(), type: isSell ? "sale" : "purchase", productId: product.id, productName: product.name, qty: q, price: pr, wholesalePriceAtTime: product.wholesalePrice, date: new Date().toISOString() }, ...txns];
+    saveProducts(); saveTxns();
+    bsQty = "1"; bsMsg = isSell ? "تسجّل البيع ✓" : "تسجّل الشراء ✓";
+    render();
+  };
+
+  const prevDay = document.getElementById("report-prev-day");
+  if (prevDay) prevDay.onclick = () => {
+    const d = new Date(reportDate + "T00:00:00");
+    d.setDate(d.getDate() - 1);
+    reportDate = dateKey(d);
+    render();
+  };
+  const nextDay = document.getElementById("report-next-day");
+  if (nextDay) nextDay.onclick = () => {
+    const d = new Date(reportDate + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    const candidate = dateKey(d);
+    if (candidate <= dateKey(new Date())) { reportDate = candidate; render(); }
+  };
+}
+
+document.querySelectorAll("#tabs button").forEach((b) => {
+  b.onclick = () => { tab = b.dataset.tab; bsMsg = ""; bsPrice = ""; render(); };
+});
+
+render();
+</script>
+</body>
+</html>
