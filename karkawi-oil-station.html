@@ -110,6 +110,7 @@
       <button data-tab="inventory" class="active">📦 المخزون</button>
       <button data-tab="buy">➕ تسجيل شراء</button>
       <button data-tab="sell">➖ تسجيل بيع</button>
+      <button data-tab="debts">💳 الديون</button>
       <button data-tab="report">📈 التقرير</button>
     </nav>
   </div>
@@ -136,12 +137,16 @@ function safeSet(key, value) {
 
 let products = JSON.parse(safeGet("karkawi_products") || "[]");
 let txns = JSON.parse(safeGet("karkawi_txns") || "[]");
+let customers = JSON.parse(safeGet("karkawi_customers") || "[]");
+let debts = JSON.parse(safeGet("karkawi_debts") || "[]");
 let tab = "inventory";
 let editingId = null;
 let showForm = false;
 
 function saveProducts() { safeSet("karkawi_products", JSON.stringify(products)); }
 function saveTxns() { safeSet("karkawi_txns", JSON.stringify(txns)); }
+function saveCustomers() { safeSet("karkawi_customers", JSON.stringify(customers)); }
+function saveDebts() { safeSet("karkawi_debts", JSON.stringify(debts)); }
 
 function formatNumberInput(el) {
   el.addEventListener("input", () => {
@@ -166,6 +171,7 @@ function render() {
   if (tab === "inventory") html += renderInventory();
   else if (tab === "buy") html += renderBuySell("buy");
   else if (tab === "sell") html += renderBuySell("sell");
+  else if (tab === "debts") html += renderDebts();
   else if (tab === "report") html += renderReport();
   main.innerHTML = html;
   wireEvents();
@@ -247,6 +253,8 @@ let bsProductId = null;
 let bsQty = "1";
 let bsPrice = "";
 let bsMsg = "";
+let bsPaymentMethod = "cash";
+let bsCustomerName = "";
 
 function renderBuySell(mode) {
   const isSell = mode === "sell";
@@ -278,10 +286,63 @@ function renderBuySell(mode) {
           <input id="bs-price" dir="ltr" inputmode="decimal" value="${fmt(bsPrice)}" data-raw="${bsPrice}" />
         </label>
       </div>
+      ${isSell ? `
+      <label class="field"><div class="field-label">طريقة الدفع</div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="pm-cash" class="btn ${bsPaymentMethod === "cash" ? "" : "ghost"}" style="flex:1;">💵 نقد</button>
+          <button type="button" id="pm-credit" class="btn ${bsPaymentMethod === "credit" ? "red" : "ghost"}" style="flex:1;">📒 دين</button>
+        </div>
+      </label>
+      ${bsPaymentMethod === "credit" ? `
+      <label class="field"><div class="field-label">اسم الزبون</div>
+        <input id="bs-customer" list="customer-list" value="${escapeHtml(bsCustomerName)}" placeholder="اكتب اسم الزبون" />
+        <datalist id="customer-list">${customers.map((c) => `<option value="${escapeHtml(c.name)}">`).join("")}</datalist>
+      </label>` : ""}
+      ` : ""}
       <div class="muted" style="font-size:13px;margin-bottom:12px;">الإجمالي: <b style="color:var(--ink);">${fmt(total)}</b></div>
-      <button class="btn ${isSell ? "green" : ""}" id="bs-submit" data-mode="${mode}">${isSell ? "تأكيد البيع" : "تأكيد الشراء"}</button>
+      <button class="btn ${isSell ? (bsPaymentMethod === "credit" ? "red" : "green") : ""}" id="bs-submit" data-mode="${mode}">${isSell ? (bsPaymentMethod === "credit" ? "تسجيل البيع كدين" : "تأكيد البيع") : "تأكيد الشراء"}</button>
       ${bsMsg && bsMsg !== "__switch__" ? `<div class="msg ${bsMsg.includes("✓") ? "ok" : "err"}">${bsMsg}</div>` : ""}
     </div>`;
+}
+
+// ---------- Debts ----------
+function renderDebts() {
+  const balances = {};
+  debts.forEach((d) => {
+    if (!balances[d.customerId]) balances[d.customerId] = { name: d.customerName, balance: 0 };
+    balances[d.customerId].balance += d.type === "charge" ? d.amount : -d.amount;
+  });
+  const list = Object.entries(balances)
+    .map(([id, v]) => ({ id, ...v }))
+    .filter((c) => c.balance > 0)
+    .sort((a, b) => b.balance - a.balance);
+  const totalOwed = list.reduce((s, c) => s + c.balance, 0);
+
+  let html = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="stat-label">إجمالي الديون المستحقة</div>
+      <div class="stat-value" style="color:${totalOwed > 0 ? "var(--red)" : "var(--ink)"};">${fmt(totalOwed)}</div>
+    </div>`;
+
+  if (list.length === 0) {
+    html += `<div class="card"><div class="empty">ما أكو ديون مستحقة حالياً 🎉</div></div>`;
+  } else {
+    html += `<div id="debt-list">` + list.map((c) => `
+      <div class="card">
+        <div class="row-between">
+          <div>
+            <div class="item-name">${escapeHtml(c.name)}</div>
+            <div class="muted" style="font-size:12.5px;">دين مستحق عليه</div>
+          </div>
+          <div style="font-size:17px;font-weight:800;color:var(--red);">${fmt(c.balance)}</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <input type="text" class="pay-amount-input" dir="ltr" inputmode="decimal" data-customer="${c.id}" placeholder="مبلغ التسديد" style="flex:1;" />
+          <button class="btn green pay-btn" data-customer="${c.id}" data-name="${escapeHtml(c.name)}">تسديد</button>
+        </div>
+      </div>`).join("") + `</div>`;
+  }
+  return html;
 }
 
 // ---------- Report ----------
@@ -416,6 +477,14 @@ function wireEvents() {
   if (bsQtyEl) bsQtyEl.oninput = () => { bsQty = bsQtyEl.value; };
   const bsPriceEl = document.getElementById("bs-price");
   if (bsPriceEl) bsPriceEl.addEventListener("input", () => { bsPrice = bsPriceEl.dataset.raw; });
+
+  const pmCash = document.getElementById("pm-cash");
+  if (pmCash) pmCash.onclick = () => { bsPaymentMethod = "cash"; bsMsg = ""; render(); };
+  const pmCredit = document.getElementById("pm-credit");
+  if (pmCredit) pmCredit.onclick = () => { bsPaymentMethod = "credit"; bsMsg = ""; render(); };
+  const bsCustomerEl = document.getElementById("bs-customer");
+  if (bsCustomerEl) bsCustomerEl.oninput = () => { bsCustomerName = bsCustomerEl.value; };
+
   const bsSubmit = document.getElementById("bs-submit");
   if (bsSubmit) bsSubmit.onclick = () => {
     const isSell = bsSubmit.dataset.mode === "sell";
@@ -425,12 +494,42 @@ function wireEvents() {
     if (!product) return;
     if (!q || q <= 0) { bsMsg = "أدخل كمية صحيحة"; render(); return; }
     if (isSell && q > product.qty) { bsMsg = `الكمية المتوفرة فقط ${product.qty}`; render(); return; }
+    if (isSell && bsPaymentMethod === "credit" && !bsCustomerName.trim()) { bsMsg = "أدخل اسم الزبون"; render(); return; }
+
     products = products.map((p) => p.id === product.id ? { ...p, qty: isSell ? p.qty - q : p.qty + q } : p);
+    const total = q * pr;
     txns = [{ id: uid(), type: isSell ? "sale" : "purchase", productId: product.id, productName: product.name, qty: q, price: pr, wholesalePriceAtTime: product.wholesalePrice, date: new Date().toISOString() }, ...txns];
+
+    if (isSell && bsPaymentMethod === "credit") {
+      const name = bsCustomerName.trim();
+      let customer = customers.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+      if (!customer) {
+        customer = { id: uid(), name, phone: "" };
+        customers = [customer, ...customers];
+        saveCustomers();
+      }
+      debts = [{ id: uid(), customerId: customer.id, customerName: customer.name, type: "charge", amount: total, date: new Date().toISOString(), note: product.name }, ...debts];
+      saveDebts();
+    }
+
     saveProducts(); saveTxns();
-    bsQty = "1"; bsMsg = isSell ? "تسجّل البيع ✓" : "تسجّل الشراء ✓";
+    bsQty = "1"; bsCustomerName = "";
+    bsMsg = isSell ? (bsPaymentMethod === "credit" ? "تسجّل البيع كدين ✓" : "تسجّل البيع ✓") : "تسجّل الشراء ✓";
     render();
   };
+
+  document.querySelectorAll(".pay-btn").forEach((b) => {
+    b.onclick = () => {
+      const customerId = b.dataset.customer;
+      const customerName = b.dataset.name;
+      const input = document.querySelector(`.pay-amount-input[data-customer="${customerId}"]`);
+      const amount = Number(input.value);
+      if (!amount || amount <= 0) return;
+      debts = [{ id: uid(), customerId, customerName, type: "payment", amount, date: new Date().toISOString(), note: "تسديد دفعة" }, ...debts];
+      saveDebts();
+      render();
+    };
+  });
 
   const prevDay = document.getElementById("report-prev-day");
   if (prevDay) prevDay.onclick = () => {
@@ -449,7 +548,7 @@ function wireEvents() {
 }
 
 document.querySelectorAll("#tabs button").forEach((b) => {
-  b.onclick = () => { tab = b.dataset.tab; bsMsg = ""; bsPrice = ""; render(); };
+  b.onclick = () => { tab = b.dataset.tab; bsMsg = ""; bsPrice = ""; bsPaymentMethod = "cash"; bsCustomerName = ""; render(); };
 });
 
 render();
