@@ -306,6 +306,11 @@ function renderBuySell(mode) {
 }
 
 // ---------- Debts ----------
+let showDebtForm = false;
+let newDebtName = "";
+let newDebtAmount = "";
+let newDebtMsg = "";
+
 function renderDebts() {
   const balances = {};
   debts.forEach((d) => {
@@ -320,9 +325,33 @@ function renderDebts() {
 
   let html = `
     <div class="card" style="margin-bottom:16px;">
-      <div class="stat-label">إجمالي الديون المستحقة</div>
-      <div class="stat-value" style="color:${totalOwed > 0 ? "var(--red)" : "var(--ink)"};">${fmt(totalOwed)}</div>
+      <div class="row-between">
+        <div>
+          <div class="stat-label">إجمالي الديون المستحقة</div>
+          <div class="stat-value" style="color:${totalOwed > 0 ? "var(--red)" : "var(--ink)"};">${fmt(totalOwed)}</div>
+        </div>
+        <button class="btn ghost" id="toggle-debt-form">${showDebtForm ? "إلغاء" : "+ إضافة دين سابق"}</button>
+      </div>
     </div>`;
+
+  if (showDebtForm) {
+    html += `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:13.5px;font-weight:700;color:var(--amber);margin-bottom:12px;">إضافة دين قديم (غير مرتبط ببيع جديد)</div>
+      <label class="field"><div class="field-label">اسم الزبون</div>
+        <input id="nd-name" list="customer-list-add" value="${escapeHtml(newDebtName)}" placeholder="اكتب اسم الزبون" />
+        <datalist id="customer-list-add">${customers.map((c) => `<option value="${escapeHtml(c.name)}">`).join("")}</datalist>
+      </label>
+      <label class="field"><div class="field-label">مبلغ الدين</div>
+        <input id="nd-amount" dir="ltr" inputmode="decimal" value="${fmt(newDebtAmount)}" data-raw="${newDebtAmount}" placeholder="0" />
+      </label>
+      <button class="btn red" id="save-old-debt">إضافة الدين</button>
+      ${newDebtMsg ? `<div class="msg ${newDebtMsg.includes("✓") ? "ok" : "err"}">${newDebtMsg}</div>` : ""}
+      <div class="muted" style="font-size:12px;margin-top:10px;">
+        لو اسم الزبون موجود من قبل، الدين ينضاف على رصيده الحالي تلقائي.
+      </div>
+    </div>`;
+  }
 
   if (list.length === 0) {
     html += `<div class="card"><div class="empty">ما أكو ديون مستحقة حالياً 🎉</div></div>`;
@@ -437,7 +466,7 @@ function wireEvents() {
   const cancel = document.getElementById("cancel-form");
   if (cancel) cancel.onclick = () => { showForm = false; editingId = null; render(); };
 
-  ["f-wholesale", "f-sale", "bs-price"].forEach((id) => {
+  ["f-wholesale", "f-sale", "bs-price", "nd-amount"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) formatNumberInput(el);
   });
@@ -530,6 +559,35 @@ function wireEvents() {
       render();
     };
   });
+
+  const toggleDebtForm = document.getElementById("toggle-debt-form");
+  if (toggleDebtForm) toggleDebtForm.onclick = () => {
+    showDebtForm = !showDebtForm;
+    newDebtName = ""; newDebtAmount = ""; newDebtMsg = "";
+    render();
+  };
+  const ndNameEl = document.getElementById("nd-name");
+  if (ndNameEl) ndNameEl.oninput = () => { newDebtName = ndNameEl.value; };
+  const saveOldDebt = document.getElementById("save-old-debt");
+  if (saveOldDebt) saveOldDebt.onclick = () => {
+    const name = newDebtName.trim();
+    const amountEl = document.getElementById("nd-amount");
+    const amount = Number(amountEl.dataset.raw || amountEl.value.replace(/,/g, ""));
+    if (!name) { newDebtMsg = "أدخل اسم الزبون"; render(); return; }
+    if (!amount || amount <= 0) { newDebtMsg = "أدخل مبلغ صحيح"; render(); return; }
+
+    let customer = customers.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+    if (!customer) {
+      customer = { id: uid(), name, phone: "" };
+      customers = [customer, ...customers];
+      saveCustomers();
+    }
+    debts = [{ id: uid(), customerId: customer.id, customerName: customer.name, type: "charge", amount, date: new Date().toISOString(), note: "دين سابق" }, ...debts];
+    saveDebts();
+
+    newDebtName = ""; newDebtAmount = ""; showDebtForm = false; newDebtMsg = "";
+    render();
+  };
 
   const prevDay = document.getElementById("report-prev-day");
   if (prevDay) prevDay.onclick = () => {
