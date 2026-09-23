@@ -309,7 +309,13 @@ function renderBuySell(mode) {
 let showDebtForm = false;
 let newDebtName = "";
 let newDebtAmount = "";
+let newDebtDate = "";
 let newDebtMsg = "";
+let expandedCustomerId = null;
+
+function fmtDebtDate(iso) {
+  return new Date(iso).toLocaleString("ar-IQ", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 function renderDebts() {
   const balances = {};
@@ -342,9 +348,14 @@ function renderDebts() {
         <input id="nd-name" list="customer-list-add" value="${escapeHtml(newDebtName)}" placeholder="اكتب اسم الزبون" />
         <datalist id="customer-list-add">${customers.map((c) => `<option value="${escapeHtml(c.name)}">`).join("")}</datalist>
       </label>
-      <label class="field"><div class="field-label">مبلغ الدين</div>
-        <input id="nd-amount" dir="ltr" inputmode="decimal" value="${fmt(newDebtAmount)}" data-raw="${newDebtAmount}" placeholder="0" />
-      </label>
+      <div class="grid2">
+        <label class="field"><div class="field-label">مبلغ الدين</div>
+          <input id="nd-amount" dir="ltr" inputmode="decimal" value="${fmt(newDebtAmount)}" data-raw="${newDebtAmount}" placeholder="0" />
+        </label>
+        <label class="field"><div class="field-label">تاريخ الدين</div>
+          <input id="nd-date" type="date" value="${newDebtDate || dateKey(new Date())}" />
+        </label>
+      </div>
       <button class="btn red" id="save-old-debt">إضافة الدين</button>
       ${newDebtMsg ? `<div class="msg ${newDebtMsg.includes("✓") ? "ok" : "err"}">${newDebtMsg}</div>` : ""}
       <div class="muted" style="font-size:12px;margin-top:10px;">
@@ -356,20 +367,37 @@ function renderDebts() {
   if (list.length === 0) {
     html += `<div class="card"><div class="empty">ما أكو ديون مستحقة حالياً 🎉</div></div>`;
   } else {
-    html += `<div id="debt-list">` + list.map((c) => `
+    html += `<div id="debt-list">` + list.map((c) => {
+      const isOpen = expandedCustomerId === c.id;
+      const history = debts.filter((d) => d.customerId === c.id).sort((a, b) => new Date(b.date) - new Date(a.date));
+      return `
       <div class="card">
-        <div class="row-between">
+        <div class="row-between debt-customer-header" data-customer="${c.id}" style="cursor:pointer;">
           <div>
             <div class="item-name">${escapeHtml(c.name)}</div>
-            <div class="muted" style="font-size:12.5px;">دين مستحق عليه</div>
+            <div class="muted" style="font-size:12.5px;">${isOpen ? "▲ إخفاء التفاصيل" : "▼ عرض تفاصيل الدين وتاريخه"}</div>
           </div>
           <div style="font-size:17px;font-weight:800;color:var(--red);">${fmt(c.balance)}</div>
         </div>
+        ${isOpen ? `
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px;">
+          ${history.map((h) => `
+            <div class="list-row">
+              <div>
+                <div style="font-size:13.5px;">${h.type === "charge" ? "📒 دين جديد" : "💵 تسديد"}${h.note ? ` — ${escapeHtml(h.note)}` : ""}</div>
+                <div class="muted" style="font-size:11.5px;margin-top:2px;">${fmtDebtDate(h.date)}</div>
+              </div>
+              <div style="font-size:14px;font-weight:700;color:${h.type === "charge" ? "var(--red)" : "var(--green)"};">
+                ${h.type === "charge" ? "+" : "-"}${fmt(h.amount)}
+              </div>
+            </div>`).join("")}
+        </div>` : ""}
         <div style="margin-top:12px;display:flex;gap:8px;">
           <input type="text" class="pay-amount-input" dir="ltr" inputmode="decimal" data-customer="${c.id}" placeholder="مبلغ التسديد" style="flex:1;" />
           <button class="btn green pay-btn" data-customer="${c.id}" data-name="${escapeHtml(c.name)}">تسديد</button>
         </div>
-      </div>`).join("") + `</div>`;
+      </div>`;
+    }).join("") + `</div>`;
   }
   return html;
 }
@@ -563,16 +591,20 @@ function wireEvents() {
   const toggleDebtForm = document.getElementById("toggle-debt-form");
   if (toggleDebtForm) toggleDebtForm.onclick = () => {
     showDebtForm = !showDebtForm;
-    newDebtName = ""; newDebtAmount = ""; newDebtMsg = "";
+    newDebtName = ""; newDebtAmount = ""; newDebtDate = ""; newDebtMsg = "";
     render();
   };
   const ndNameEl = document.getElementById("nd-name");
   if (ndNameEl) ndNameEl.oninput = () => { newDebtName = ndNameEl.value; };
+  const ndDateEl = document.getElementById("nd-date");
+  if (ndDateEl) ndDateEl.oninput = () => { newDebtDate = ndDateEl.value; };
   const saveOldDebt = document.getElementById("save-old-debt");
   if (saveOldDebt) saveOldDebt.onclick = () => {
     const name = newDebtName.trim();
     const amountEl = document.getElementById("nd-amount");
     const amount = Number(amountEl.dataset.raw || amountEl.value.replace(/,/g, ""));
+    const dateEl = document.getElementById("nd-date");
+    const chosenDate = dateEl.value ? new Date(dateEl.value + "T12:00:00").toISOString() : new Date().toISOString();
     if (!name) { newDebtMsg = "أدخل اسم الزبون"; render(); return; }
     if (!amount || amount <= 0) { newDebtMsg = "أدخل مبلغ صحيح"; render(); return; }
 
@@ -582,12 +614,20 @@ function wireEvents() {
       customers = [customer, ...customers];
       saveCustomers();
     }
-    debts = [{ id: uid(), customerId: customer.id, customerName: customer.name, type: "charge", amount, date: new Date().toISOString(), note: "دين سابق" }, ...debts];
+    debts = [{ id: uid(), customerId: customer.id, customerName: customer.name, type: "charge", amount, date: chosenDate, note: "دين سابق" }, ...debts];
     saveDebts();
 
-    newDebtName = ""; newDebtAmount = ""; showDebtForm = false; newDebtMsg = "";
+    newDebtName = ""; newDebtAmount = ""; newDebtDate = ""; showDebtForm = false; newDebtMsg = "";
     render();
   };
+
+  document.querySelectorAll(".debt-customer-header").forEach((el) => {
+    el.onclick = () => {
+      const id = el.dataset.customer;
+      expandedCustomerId = expandedCustomerId === id ? null : id;
+      render();
+    };
+  });
 
   const prevDay = document.getElementById("report-prev-day");
   if (prevDay) prevDay.onclick = () => {
